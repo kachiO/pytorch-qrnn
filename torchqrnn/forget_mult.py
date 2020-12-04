@@ -115,7 +115,8 @@ class GPUForgetMult(torch.autograd.Function):
             GPUForgetMult.configured_gpus[torch.cuda.current_device()] = (self.forget_mult, self.bwd_forget_mult, self.stream)
 
         self.forget_mult, self.bwd_forget_mult, self.stream = GPUForgetMult.configured_gpus[torch.cuda.current_device()]
-
+    
+    @staticmethod
     def forward(self, f, x, hidden_init=None):
         self.compile()
         seq_size, batch_size, hidden_size = f.size()
@@ -131,7 +132,8 @@ class GPUForgetMult(torch.autograd.Function):
         self.save_for_backward(f, x, hidden_init)
         self.result = result
         return result[1:, :, :]
-
+    
+    @staticmethod
     def backward(self, grad_h):
         self.compile()
         f, x, hidden_init = self.saved_tensors
@@ -176,7 +178,7 @@ class ForgetMult(torch.nn.Module):
         ###
         # Avoiding 'RuntimeError: expected a Variable argument, but got NoneType' when hidden_init is None
         if hidden_init is None: return GPUForgetMult()(f, x) if use_cuda else CPUForgetMult()(f, x)
-        return GPUForgetMult()(f, x, hidden_init) if use_cuda else CPUForgetMult()(f, x, hidden_init)
+        return GPUForgetMult.apply(f, x, hidden_init) if use_cuda else CPUForgetMult()(f, x, hidden_init)
 
 ###
 

@@ -117,7 +117,7 @@ class GPUForgetMult(torch.autograd.Function):
         self.forget_mult, self.bwd_forget_mult, self.stream = GPUForgetMult.configured_gpus[torch.cuda.current_device()]
     
     @staticmethod
-    def forward(self, f, x, hidden_init=None):
+    def forward(ctx, f, x, hidden_init=None):
         self.compile()
         seq_size, batch_size, hidden_size = f.size()
         result = f.new(seq_size + 1, batch_size, hidden_size)
@@ -129,14 +129,14 @@ class GPUForgetMult(torch.autograd.Function):
         grid_hidden_size = min(hidden_size, 512)
         grid = (math.ceil(hidden_size / grid_hidden_size), batch_size)
         self.forget_mult(grid=grid, block=(grid_hidden_size, 1), args=[result.data_ptr(), f.data_ptr(), x.data_ptr(), seq_size, batch_size, hidden_size], stream=self.stream)
-        self.save_for_backward(f, x, hidden_init)
+        ctx.save_for_backward(f, x, hidden_init)
         self.result = result
         return result[1:, :, :]
     
     @staticmethod
-    def backward(self, grad_h):
+    def backward(ctx, grad_h):
         self.compile()
-        f, x, hidden_init = self.saved_tensors
+        f, x, hidden_init = ctx.saved_tensors
         h = self.result
         ###
         seq_size, batch_size, hidden_size = f.size()
